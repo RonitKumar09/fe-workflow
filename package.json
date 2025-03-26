@@ -1,0 +1,166 @@
+{
+  "name": "fe-dev-workflow",
+  "displayName": "JIRA Workflow Checklist",
+  "description": "VS Code extension to track JIRA tasks and manage a development workflow checklist",
+  "version": "0.0.1",
+  "publisher": "Ronit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RonitKumar09/fe-workflow-extention.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.98.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:jiraTasksView"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "jira-checklist.editor",
+        "displayName": "Workflow Checklist Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.json",
+            "scheme": "jira-checklist"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "jira-workflow",
+          "title": "JIRA Workflow",
+          "icon": "media/jira-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "jira-workflow": [
+        {
+          "id": "jiraTasksView",
+          "name": "My JIRA Tasks"
+        },
+        {
+          "id": "workflowChecklist",
+          "name": "Workflow Checklist"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "fe-dev-workflow.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "fe-dev-workflow.refreshJiraTasks",
+        "title": "Refresh JIRA Tasks",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "fe-dev-workflow.openChecklistEditor",
+        "title": "Open Checklist"
+      },
+      {
+        "command": "fe-dev-workflow.exportChecklist",
+        "title": "Export Checklist",
+        "icon": "$(export)"
+      },
+      {
+        "command": "fe-dev-workflow.configureJiraCredentials",
+        "title": "Configure JIRA Credentials"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "fe-dev-workflow.refreshJiraTasks",
+          "when": "view == jiraTasksView",
+          "group": "navigation"
+        },
+        {
+          "command": "fe-dev-workflow.configureJiraCredentials",
+          "when": "view == jiraTasksView",
+          "group": "settings"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "fe-dev-workflow.openChecklistEditor",
+          "when": "view == jiraTasksView",
+          "group": "inline"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "fe-dev-workflow.exportChecklist",
+          "when": "resourceScheme == jira-checklist",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "JIRA Workflow Checklist",
+      "properties": {
+        "jiraWorkflow.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "JIRA base URL (e.g., https://your-domain.atlassian.net)"
+        },
+        "jiraWorkflow.username": {
+          "type": "string",
+          "default": "",
+          "description": "JIRA username (email)"
+        },
+        "jiraWorkflow.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "JIRA API token"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "@types/vscode": "^1.98.0",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.3.1",
+    "css-loader": "^7.1.2",
+    "eslint": "^9.23.0",
+    "file-loader": "^6.2.0",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.2",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
