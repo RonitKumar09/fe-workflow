@@ -76,12 +76,22 @@
       {
         "command": "fe-dev-workflow.configureJiraCredentials",
         "title": "Configure JIRA Credentials"
+      },
+      {
+        "command": "fe-dev-workflow.toggleNotifications",
+        "title": "Toggle JIRA Task Notifications",
+        "icon": "$(bell)"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "fe-dev-workflow.refreshJiraTasks",
+          "when": "view == jiraTasksView",
+          "group": "navigation"
+        },
+        {
+          "command": "fe-dev-workflow.toggleNotifications",
           "when": "view == jiraTasksView",
           "group": "navigation"
         },
@@ -123,6 +133,22 @@
           "type": "string",
           "default": "",
           "description": "JIRA API token"
+        },
+        "jiraWorkflow.notificationsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable notifications for new JIRA task assignments"
+        },
+        "jiraWorkflow.notificationPollingInterval": {
+          "type": "number",
+          "minimum": 1,
+          "default": 5,
+          "description": "How often to check for new JIRA task assignments (in minutes)"
+        },
+        "jiraWorkflow.notificationSound": {
+          "type": "boolean",
+          "default": true,
+          "description": "Play a sound when new tasks are assigned"
         }
       }
     }

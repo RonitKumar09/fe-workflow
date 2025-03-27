@@ -5,6 +5,8 @@ import { JiraCredentials, JiraTask } from '../models/jiraTask';
 export class JiraService {
   private static instance: JiraService;
   private credentials: JiraCredentials | undefined;
+  private knownTaskIds: Set<string> = new Set<string>();
+  private pollingInterval: NodeJS.Timeout | undefined;
 
   private constructor() {}
 
@@ -135,5 +137,80 @@ export class JiraService {
       console.error('Error fetching JIRA tasks:', error);
       throw new Error('Failed to fetch JIRA tasks. Please check your credentials and connection.');
     }
+  }
+
+  /**
+   * Starts polling for new JIRA task assignments
+   * @param callback Function to call when new tasks are detected
+   */
+  public startNotificationPolling(callback: (tasks: JiraTask[]) => void): void {
+    // Clear any existing interval
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+
+    const config = vscode.workspace.getConfiguration('jiraWorkflow');
+    const pollingIntervalMinutes = config.get<number>('notificationPollingInterval') || 5;
+    const pollingIntervalMs = pollingIntervalMinutes * 60 * 1000;
+
+    // Store initial tasks to avoid initial flood of notifications
+    this.getMyTasks().then(tasks => {
+      this.updateKnownTasks(tasks);
+    }).catch(error => {
+      console.error('Failed to get initial tasks:', error);
+    });
+
+    // Set up polling interval
+    this.pollingInterval = setInterval(async () => {
+      try {
+        // Only check for new tasks if we have credentials
+        if (await this.getCredentials()) {
+          const tasks = await this.getMyTasks();
+          const newTasks = this.detectNewTasks(tasks);
+
+          if (newTasks.length > 0) {
+            callback(newTasks);
+          }
+        }
+      } catch (error) {
+        console.error('Error polling for new tasks:', error);
+      }
+    }, pollingIntervalMs);
+  }
+
+  /**
+   * Stops polling for new task assignments
+   */
+  public stopNotificationPolling(): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = undefined;
+    }
+  }
+
+  /**
+   * Updates the set of known task IDs
+   */
+  private updateKnownTasks(tasks: JiraTask[]): void {
+    tasks.forEach(task => {
+      this.knownTaskIds.add(task.id);
+    });
+  }
+
+  /**
+   * Detects new tasks in the provided list
+   * @returns Array of new tasks
+   */
+  private detectNewTasks(tasks: JiraTask[]): JiraTask[] {
+    const newTasks: JiraTask[] = [];
+
+    tasks.forEach(task => {
+      if (!this.knownTaskIds.has(task.id)) {
+        newTasks.push(task);
+        this.knownTaskIds.add(task.id);
+      }
+    });
+
+    return newTasks;
   }
 }

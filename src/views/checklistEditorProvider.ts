@@ -47,7 +47,7 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       switch (message.command) {
         case 'toggleCheckbox':
-          await this.toggleCheckbox(message.sectionId, message.itemId, checklist);
+          await this.toggleCheckbox(message.sectionId, message.itemId, message.status, checklist);
           await this.saveChecklist(checklist);
           break;
         case 'exportChecklist':
@@ -62,6 +62,10 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             command: 'updateProgress',
             progress: this.calculateProgress(checklist)
           });
+          break;
+        case 'updateNotes':
+          await this.updateNotes(message.sectionId, message.itemId, message.notes, checklist);
+          await this.saveChecklist(checklist);
           break;
       }
     });
@@ -84,12 +88,12 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
     });
   }
 
-  private async toggleCheckbox(sectionId: string, itemId: string, checklist: WorkflowChecklist): Promise<void> {
+  private async toggleCheckbox(sectionId: string, itemId: string, status: 'not-started' | 'in-progress' | 'completed', checklist: WorkflowChecklist): Promise<void> {
     const section = checklist.sections.find(section => section.id === sectionId);
     if (section) {
       const item = section.items.find(item => item.id === itemId);
       if (item) {
-        item.isChecked = !item.isChecked;
+        item.status = status;
       }
     }
   }
@@ -104,15 +108,18 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
     }
   }
 
-  private calculateProgress(checklist: WorkflowChecklist): { completed: number, total: number, percentage: number } {
+  private calculateProgress(checklist: WorkflowChecklist): { completed: number, total: number, percentage: number, inProgress: number } {
     let completed = 0;
+    let inProgress = 0;
     let total = 0;
     
     checklist.sections.forEach(section => {
       section.items.forEach(item => {
         total++;
-        if (item.isChecked) {
+        if (item.status === 'completed') {
           completed++;
+        } else if (item.status === 'in-progress') {
+          inProgress++;
         }
       });
     });
@@ -121,6 +128,7 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
     
     return {
       completed,
+      inProgress,
       total,
       percentage
     };
@@ -173,6 +181,7 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             --checkbox-color: var(--vscode-checkbox-selectBackground, #0066B8);
             --checkbox-checkmark: var(--vscode-checkbox-foreground, #FFFFFF);
             --checkbox-border: var(--vscode-checkbox-border, #CCCCCC);
+            --inprogress-color: var(--vscode-statusBarItem-warningBackground, #D9822B);
             --heading-font-size: 1.5em;
             --subheading-font-size: 1.3em;
             --normal-font-size: 0.95em;
@@ -268,6 +277,17 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             border-radius: 3px;
             transition: width 0.3s ease;
           }
+          
+          .progress-bar-inprogress {
+            height: 100%;
+            background-color: var(--inprogress-color);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+          }
 
           .progress-text {
             display: flex;
@@ -275,6 +295,33 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             font-size: var(--small-font-size);
             margin-top: 6px;
             color: var(--vscode-descriptionForeground);
+          }
+          
+          .progress-detail {
+            display: flex;
+            gap: 10px;
+            font-size: var(--small-font-size);
+            margin-top: 4px;
+          }
+          
+          .progress-legend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          
+          .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+          }
+          
+          .legend-completed {
+            background-color: var(--progress-bar-bg);
+          }
+          
+          .legend-inprogress {
+            background-color: var(--inprogress-color);
           }
 
           .main-content {
@@ -331,12 +378,12 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
 
           .section-content.expanded {
             padding: 15px;
-            max-height: 2000px; /* Arbitrary large value */
+            max-height: 5000px; /* Increased to accommodate notes */
           }
 
           .checklist-item {
-            margin-bottom: 12px;
-            padding-bottom: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
             border-bottom: 1px solid var(--vscode-panel-border);
           }
 
@@ -352,46 +399,76 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             gap: 10px;
           }
 
-          .checkbox-container {
+          .status-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 24px;
             margin-top: 3px;
-            position: relative;
           }
 
-          /* Improved checkbox styling for better visibility and functionality */
-          .checkbox {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            width: 16px;
-            height: 16px;
+          .status-button {
+            width: 24px;
+            height: 24px;
             border: 1px solid var(--checkbox-border);
-            border-radius: 3px;
-            outline: none;
+            border-radius: 4px;
+            background-color: var(--vscode-button-secondaryBackground);
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
             position: relative;
-            background-color: var(--vscode-input-background);
-            transition: all 0.2s;
           }
           
-          .checkbox:checked {
-            background-color: var(--checkbox-color);
+          .status-button:hover {
+            background-color: var(--vscode-button-secondaryHoverBackground);
+          }
+          
+          .status-button.active {
             border-color: var(--checkbox-color);
           }
           
-          .checkbox:checked::after {
+          .status-not-started.active {
+            background-color: var(--vscode-editor-background);
+            border-color: var(--checkbox-color);
+            border-width: 2px;
+          }
+          
+          .status-in-progress.active {
+            background-color: var(--inprogress-color);
+            border-color: var(--inprogress-color);
+          }
+          
+          .status-in-progress.active::after {
             content: '';
-            position: absolute;
-            left: 5px;
-            top: 1px;
-            width: 4px;
-            height: 8px;
-            border: solid var(--checkbox-checkmark);
+            display: block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid white;
+            border-radius: 50%;
+            border-bottom-color: transparent;
+            animation: spin 1s linear infinite;
+          }
+          
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          
+          .status-completed.active {
+            background-color: var(--checkbox-color);
+            border-color: var (--checkbox-color);
+          }
+          
+          .status-completed.active::after {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 12px;
+            border: solid white;
             border-width: 0 2px 2px 0;
             transform: rotate(45deg);
-          }
-          
-          .checkbox:hover {
-            border-color: var(--checkbox-color);
           }
 
           .checklist-item-content {
@@ -402,18 +479,78 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             margin: 0;
             padding: 0;
             font-size: var(--normal-font-size);
+            transition: all 0.2s;
           }
 
-          .checked .checklist-item-title {
+          .completed .checklist-item-title {
             text-decoration: line-through;
             color: var(--vscode-disabledForeground);
+            opacity: 0.8;
+          }
+          
+          .in-progress .checklist-item-title {
+            font-weight: bold;
+            color: var (--inprogress-color);
           }
 
           .checklist-item-description {
             font-size: var(--small-font-size);
             color: var(--vscode-descriptionForeground);
             margin-top: 5px;
-            padding-left: 26px; /* align with title when checkbox is present */
+            margin-bottom: 8px;
+          }
+          
+          .notes-container {
+            margin-top: 10px;
+            margin-bottom: 5px;
+            padding-left: 34px; /* Align with title */
+          }
+          
+          .notes-label {
+            font-size: var(--small-font-size);
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 4px;
+            font-weight: 500;
+          }
+          
+          .notes-textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            font-family: var(--vscode-font-family);
+            font-size: var(--small-font-size);
+            resize: vertical;
+          }
+          
+          .notes-textarea:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+          }
+          
+          .notes-text {
+            font-size: var(--small-font-size);
+            color: var(--vscode-input-foreground);
+            padding: 8px;
+            background-color: var(--vscode-input-background);
+            border-radius: 4px;
+            border-left: 3px solid var(--vscode-focusBorder);
+            white-space: pre-wrap;
+          }
+          
+          .notes-text.empty {
+            font-style: italic;
+            color: var(--vscode-disabledForeground);
+          }
+          
+          .edit-notes {
+            cursor: pointer;
+            margin-left: 4px;
+            color: var(--vscode-textLink-foreground);
+            font-size: var(--small-font-size);
           }
 
           .button {
@@ -423,7 +560,7 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: var(--small-font-size);
+            font-size: var (--small-font-size);
             display: flex;
             align-items: center;
             gap: 6px;
@@ -441,7 +578,7 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
 
           .timestamp {
             font-size: var(--small-font-size);
-            color: var (--vscode-descriptionForeground);
+            color: var(--vscode-descriptionForeground);
             margin-top: 30px;
             border-top: 1px solid var(--vscode-editorWidget-border);
             padding-top: 10px;
@@ -495,12 +632,23 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
             </div>
           </div>
           <div class="progress-container">
-            <div class="progress-bar-outer">
+            <div class="progress-bar-outer" style="position: relative">
+              <div class="progress-bar-inprogress" style="width: ${(progress.inProgress / progress.total) * 100}%"></div>
               <div class="progress-bar-inner" style="width: ${progress.percentage}%"></div>
             </div>
             <div class="progress-text">
-              <span>${progress.completed} of ${progress.total} items completed</span>
-              <span>${progress.percentage}%</span>
+              <span>${progress.completed} of ${progress.total} items completed (${progress.percentage}%)</span>
+              <span>${progress.inProgress} in progress</span>
+            </div>
+            <div class="progress-detail">
+              <div class="progress-legend">
+                <div class="legend-color legend-completed"></div>
+                <span>Completed</span>
+              </div>
+              <div class="progress-legend">
+                <div class="legend-color legend-inprogress"></div>
+                <span>In Progress</span>
+              </div>
             </div>
           </div>
         </div>
@@ -517,32 +665,114 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
 
         <script nonce="${nonce}">
           const vscode = acquireVsCodeApi();
-
-          // Handle checkbox changes
-          document.addEventListener('change', function(e) {
-            if (e.target.classList.contains('checkbox')) {
-              const sectionId = e.target.getAttribute('data-section-id');
-              const itemId = e.target.getAttribute('data-item-id');
+          
+          // Track which notes are being edited
+          const editingNotes = new Set();
+          
+          // Handle status button clicks
+          document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('status-button') || e.target.closest('.status-button')) {
+              const button = e.target.classList.contains('status-button') ? e.target : e.target.closest('.status-button');
+              const statusType = button.getAttribute('data-status');
+              const sectionId = button.getAttribute('data-section-id');
+              const itemId = button.getAttribute('data-item-id');
+              const itemElement = button.closest('.checklist-item');
+              const contentElement = itemElement.querySelector('.checklist-item-content');
               
-              // Toggle checked class for styling
-              const contentElement = e.target.closest('.checklist-item-header').querySelector('.checklist-item-content');
-              if (e.target.checked) {
-                contentElement.classList.add('checked');
-              } else {
-                contentElement.classList.remove('checked');
-              }
+              // Update UI
+              itemElement.querySelectorAll('.status-button').forEach(btn => {
+                btn.classList.remove('active');
+              });
+              button.classList.add('active');
+              
+              // Update content class for styling
+              contentElement.classList.remove('not-started', 'in-progress', 'completed');
+              contentElement.classList.add(statusType);
               
               // Send message to extension
               vscode.postMessage({
                 command: 'toggleCheckbox',
                 sectionId: sectionId,
-                itemId: itemId
+                itemId: itemId,
+                status: statusType
               });
-
+              
               // Request progress update
               vscode.postMessage({
                 command: 'updateProgress'
               });
+            }
+          });
+          
+          // Handle edit notes clicks
+          document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('edit-notes')) {
+              const notesContainer = e.target.closest('.notes-container');
+              const notesText = notesContainer.querySelector('.notes-text');
+              const itemId = notesContainer.getAttribute('data-item-id');
+              const sectionId = notesContainer.getAttribute('data-section-id');
+              
+              if (!editingNotes.has(itemId)) {
+                // Switch to edit mode
+                const currentNotes = notesText.getAttribute('data-notes') || '';
+                
+                // Create textarea
+                const textarea = document.createElement('textarea');
+                textarea.className = 'notes-textarea';
+                textarea.value = currentNotes;
+                textarea.placeholder = 'Add your notes here...';
+                textarea.setAttribute('data-item-id', itemId);
+                textarea.setAttribute('data-section-id', sectionId);
+                
+                // Replace text with textarea
+                notesText.style.display = 'none';
+                notesContainer.insertBefore(textarea, notesText.nextSibling);
+                
+                // Change edit link
+                e.target.textContent = 'Save';
+                
+                // Focus textarea
+                textarea.focus();
+                
+                // Mark as editing
+                editingNotes.add(itemId);
+              } else {
+                // Save the notes
+                const textarea = notesContainer.querySelector('.notes-textarea');
+                const notes = textarea.value.trim();
+                
+                // Update data attribute
+                notesText.setAttribute('data-notes', notes);
+                
+                // Update display
+                if (notes) {
+                  notesText.textContent = notes;
+                  notesText.classList.remove('empty');
+                } else {
+                  notesText.textContent = 'No notes added yet';
+                  notesText.classList.add('empty');
+                }
+                
+                // Show text again
+                notesText.style.display = 'block';
+                
+                // Remove textarea
+                textarea.remove();
+                
+                // Change edit link back
+                e.target.textContent = 'Edit';
+                
+                // Save to extension
+                vscode.postMessage({
+                  command: 'updateNotes',
+                  sectionId: sectionId,
+                  itemId: itemId,
+                  notes: notes
+                });
+                
+                // Remove from editing set
+                editingNotes.delete(itemId);
+              }
             }
           });
 
@@ -592,12 +822,15 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
 
           function updateProgressBar(progress) {
             const progressBar = document.querySelector('.progress-bar-inner');
+            const inProgressBar = document.querySelector('.progress-bar-inprogress');
             const progressText = document.querySelector('.progress-text');
             
             progressBar.style.width = progress.percentage + '%';
+            inProgressBar.style.width = ((progress.inProgress / progress.total) * 100) + '%';
+            
             progressText.innerHTML = 
-              '<span>' + progress.completed + ' of ' + progress.total + ' items completed</span>' +
-              '<span>' + progress.percentage + '%</span>';
+              '<span>' + progress.completed + ' of ' + progress.total + ' items completed (' + progress.percentage + '%)</span>' +
+              '<span>' + progress.inProgress + ' in progress</span>';
           }
 
           // Initial progress update request
@@ -614,7 +847,8 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
     return checklist.sections.map(section => {
       const sectionItems = section.items || [];
       const sectionItemsCount = sectionItems.length;
-      const completedItems = sectionItems.filter(item => item.isChecked).length;
+      const completedItems = sectionItems.filter(item => item.status === 'completed').length;
+      const inProgressItems = sectionItems.filter(item => item.status === 'in-progress').length;
       const sectionPercentage = sectionItemsCount > 0 
         ? Math.round((completedItems / sectionItemsCount) * 100) 
         : 0;
@@ -630,7 +864,7 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
               ${section.title}
             </div>
             <div class="section-progress">
-              ${completedItems}/${sectionItemsCount} (${sectionPercentage}%)
+              ${completedItems}/${sectionItemsCount} (${sectionPercentage}%) · ${inProgressItems} in progress
             </div>
           </div>
           <div class="section-content ${isExpanded ? 'expanded' : ''}" data-section-id="${section.id}">
@@ -645,22 +879,52 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
     return section.items.map((item: any) => `
       <div class="checklist-item" data-item-id="${item.id}">
         <div class="checklist-item-header">
-          <div class="checkbox-container">
-            <input type="checkbox" class="checkbox" 
-                ${item.isChecked ? 'checked' : ''}
+          <div class="status-controls">
+            <div class="status-button status-not-started ${item.status === 'not-started' ? 'active' : ''}"
                 data-section-id="${section.id}" 
-                data-item-id="${item.id}">
+                data-item-id="${item.id}"
+                data-status="not-started"
+                title="Not Started">
+            </div>
+            <div class="status-button status-in-progress ${item.status === 'in-progress' ? 'active' : ''}"
+                data-section-id="${section.id}" 
+                data-item-id="${item.id}"
+                data-status="in-progress"
+                title="In Progress">
+            </div>
+            <div class="status-button status-completed ${item.status === 'completed' ? 'active' : ''}"
+                data-section-id="${section.id}" 
+                data-item-id="${item.id}"
+                data-status="completed"
+                title="Completed">
+            </div>
           </div>
-          <div class="checklist-item-content ${item.isChecked ? 'checked' : ''}">
+          <div class="checklist-item-content ${item.status}">
             <p class="checklist-item-title">${item.title}</p>
+            ${item.description ? `<p class="checklist-item-description">${item.description}</p>` : ''}
+            <div class="notes-container" data-section-id="${section.id}" data-item-id="${item.id}">
+              <div class="notes-label">Notes <span class="edit-notes">Edit</span></div>
+              <div class="notes-text ${!item.notes ? 'empty' : ''}" data-notes="${item.notes || ''}">
+                ${item.notes || 'No notes added yet'}
+              </div>
+            </div>
           </div>
         </div>
-        ${item.description ? `<p class="checklist-item-description">${item.description}</p>` : ''}
       </div>
     `).join('');
   }
+  
+  private async updateNotes(sectionId: string, itemId: string, notes: string, checklist: WorkflowChecklist): Promise<void> {
+    const section = checklist.sections.find(section => section.id === sectionId);
+    if (section) {
+      const item = section.items.find(item => item.id === itemId);
+      if (item) {
+        item.notes = notes;
+      }
+    }
+  }
 
-  private getNonce(): string {
+  private getNonce() {
     let text = '';
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     for (let i = 0; i < 32; i++) {

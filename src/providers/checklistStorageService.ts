@@ -110,6 +110,7 @@ export class ChecklistStorageService {
         <title>Workflow Checklist for ${checklist.jiraTaskKey}</title>
         <style>
           :root {
+            /* Light theme colors */
             --primary-color: #0052CC;
             --secondary-color: #172B4D;
             --bg-color: #ffffff;
@@ -119,6 +120,35 @@ export class ChecklistStorageService {
             --success-color: #00875A;
             --header-bg: #F4F5F7;
             --section-hover: #f5f5f5;
+            --item-notes-bg: #F4F5F7;
+            --item-notes-border: #0052CC;
+            --checkbox-border: #DFE1E6;
+            --in-progress-color: #F5C94E;
+            --button-bg: #0052CC;
+            --button-text: #ffffff;
+            --button-hover: #0747A6;
+            --theme-toggle-shadow: rgba(0, 0, 0, 0.1);
+          }
+          
+          /* Dark theme colors */
+          [data-theme="dark"] {
+            --primary-color: #4C9AFF;
+            --secondary-color: #B8C7E0;
+            --bg-color: #1A1A1A;
+            --text-color: #E6E6E6;
+            --text-light: #A8B2C1;
+            --border-color: #444;
+            --success-color: #36B37E;
+            --header-bg: #2C2C2C;
+            --section-hover: #333;
+            --item-notes-bg: #2C2C2C;
+            --item-notes-border: #4C9AFF;
+            --checkbox-border: #555;
+            --in-progress-color: #F5C94E;
+            --button-bg: #4C9AFF;
+            --button-text: #E6E6E6;
+            --button-hover: #388BFF;
+            --theme-toggle-shadow: rgba(255, 255, 255, 0.1);
           }
           
           body {
@@ -129,6 +159,7 @@ export class ChecklistStorageService {
             margin: 0 auto;
             padding: 20px;
             background-color: var(--bg-color);
+            transition: all 0.3s ease;
           }
           
           .header {
@@ -137,6 +168,35 @@ export class ChecklistStorageService {
             border-radius: 6px;
             margin-bottom: 30px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+          }
+          
+          .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--bg-color);
+            box-shadow: 0 2px 5px var(--theme-toggle-shadow);
+            cursor: pointer;
+            border: none;
+            outline: none;
+            transition: all 0.3s ease;
+          }
+          
+          .theme-toggle:hover {
+            transform: scale(1.05);
+          }
+          
+          .theme-toggle svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--primary-color);
           }
           
           h1 { 
@@ -245,6 +305,21 @@ export class ChecklistStorageService {
             margin-right: 10px;
             margin-top: 4px;
             flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            border: 1px solid var(--checkbox-border);
+            background: var(--bg-color);
+            color: var(--success-color);
+            font-weight: bold;
+          }
+          
+          .in-progress .checklist-item-title {
+            color: var(--in-progress-color);
+            font-weight: bold;
           }
           
           .checked .checklist-item-title {
@@ -268,6 +343,23 @@ export class ChecklistStorageService {
             margin-bottom: 0;
           }
           
+          .item-notes {
+            font-size: 0.9em;
+            color: var(--text-color);
+            margin-top: 10px;
+            padding: 8px;
+            background-color: var(--item-notes-bg);
+            border-left: 3px solid var(--item-notes-border);
+            border-radius: 3px;
+            white-space: pre-wrap;
+          }
+          
+          .notes-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--secondary-color);
+          }
+          
           .footer {
             margin-top: 30px;
             padding-top: 15px;
@@ -280,20 +372,77 @@ export class ChecklistStorageService {
           @media print {
             body {
               padding: 0;
+              background-color: white !important;
+              color: black !important;
+            }
+            
+            .theme-toggle {
+              display: none;
             }
             
             .section, .header {
               page-break-inside: avoid;
+              border: 1px solid #ddd !important;
             }
             
             @page {
               margin: 1.5cm;
             }
           }
+          
+          /* Tooltip styles */
+          .tooltip {
+            position: relative;
+            display: inline-block;
+          }
+          
+          .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 140px;
+            background-color: var(--header-bg);
+            color: var(--text-color);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -70px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            border: 1px solid var(--border-color);
+          }
+          
+          .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--header-bg) transparent transparent transparent;
+          }
+          
+          .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+          }
         </style>
       </head>
       <body>
         <div class="header">
+          <button id="theme-toggle" class="theme-toggle tooltip" aria-label="Toggle dark mode">
+            <span class="tooltiptext">Toggle Dark Mode</span>
+            <svg id="theme-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <!-- Sun icon (for dark mode toggle) -->
+              <path class="sun-icon" d="M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S14.76,7,12,7L12,7z M2,13h2c0.55,0,1-0.45,1-1s-0.45-1-1-1H2 c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13h2c0.55,0,1-0.45,1-1s-0.45-1-1-1h-2c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2 c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1 S11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0 s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06 c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41 c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36 c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z" />
+              <!-- Moon icon (for light mode toggle) -->
+              <path class="moon-icon" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36c-0.98,1.37-2.58,2.26-4.4,2.26 c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z" style="display: none;" />
+            </svg>
+          </button>
           <div class="task-key">${checklist.jiraTaskKey}</div>
           <div class="task-summary">${checklist.jiraTaskSummary}</div>
           <div class="timestamp">Last updated: ${new Date(checklist.lastUpdated).toLocaleString()}</div>
@@ -316,7 +465,8 @@ export class ChecklistStorageService {
 
     for (const section of checklist.sections) {
       const sectionItems = section.items || [];
-      const completedItems = sectionItems.filter(item => item.isChecked).length;
+      const completedItems = sectionItems.filter(item => item.status === 'completed').length;
+      const inProgressItems = sectionItems.filter(item => item.status === 'in-progress').length;
       const sectionItemsCount = sectionItems.length;
       const sectionPercentage = sectionItemsCount > 0 
         ? Math.round((completedItems / sectionItemsCount) * 100) 
@@ -327,19 +477,21 @@ export class ChecklistStorageService {
           <div class="section-header">
             <div class="section-title">${section.title}</div>
             <div class="section-progress">
-              ${completedItems}/${sectionItemsCount} (${sectionPercentage}%)
+              ${completedItems}/${sectionItemsCount} (${sectionPercentage}%) · ${inProgressItems} in progress
             </div>
           </div>
           <div class="section-content">
       `;
       
       for (const item of section.items) {
-        const checkedClass = item.isChecked ? 'checked' : '';
-        const checkedSymbol = item.isChecked ? '✓' : '□';
+        const isCompleted = item.status === 'completed';
+        const isInProgress = item.status === 'in-progress';
+        const statusClass = isCompleted ? 'checked' : (isInProgress ? 'in-progress' : '');
+        const statusSymbol = isCompleted ? '✓' : (isInProgress ? '⟳' : '□');
         
         html += `
-          <div class="checklist-item ${checkedClass}">
-            <div class="checkbox">${checkedSymbol}</div>
+          <div class="checklist-item ${statusClass}">
+            <div class="checkbox">${statusSymbol}</div>
             <div class="checklist-item-content">
               <p class="checklist-item-title">${item.title}</p>
         `;
@@ -347,6 +499,15 @@ export class ChecklistStorageService {
         if (item.description) {
           html += `
             <p class="checklist-item-description">${item.description}</p>
+          `;
+        }
+        
+        if (item.notes) {
+          html += `
+            <div class="item-notes">
+              <div class="notes-label">Notes:</div>
+              ${item.notes}
+            </div>
           `;
         }
         
@@ -368,6 +529,55 @@ export class ChecklistStorageService {
         <div class="footer">
           FE Developer Workflow Checklist for JIRA Task ${checklist.jiraTaskKey} - Generated on ${new Date().toLocaleString()}
         </div>
+
+        <script>
+          // Function to set the theme
+          function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Update the icon
+            const sunIcon = document.querySelector('.sun-icon');
+            const moonIcon = document.querySelector('.moon-icon');
+            
+            if (theme === 'dark') {
+              sunIcon.style.display = 'block';
+              moonIcon.style.display = 'none';
+            } else {
+              sunIcon.style.display = 'none';
+              moonIcon.style.display = 'block';
+            }
+            
+            // Save the preference to localStorage
+            localStorage.setItem('preferred-theme', theme);
+          }
+          
+          // Function to toggle theme
+          function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+          }
+          
+          // Initialize theme based on saved preference or system preference
+          document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('preferred-theme');
+            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+            
+            if (savedTheme) {
+              setTheme(savedTheme);
+            } else if (prefersDarkScheme.matches) {
+              setTheme('dark');
+            } else {
+              setTheme('light');
+            }
+            
+            // Add event listener to the theme toggle button
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+              themeToggle.addEventListener('click', toggleTheme);
+            }
+          });
+        </script>
       </body>
       </html>
     `;
@@ -382,7 +592,7 @@ export class ChecklistStorageService {
     checklist.sections.forEach(section => {
       section.items.forEach(item => {
         total++;
-        if (item.isChecked) {
+        if (item.status === 'completed') {
           completed++;
         }
       });

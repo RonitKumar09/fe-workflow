@@ -30,6 +30,9 @@ export function activate(context: vscode.ExtensionContext) {
   const jiraTasksProvider = new JiraTasksProvider(jiraService);
   vscode.window.registerTreeDataProvider('jiraTasksView', jiraTasksProvider);
 
+  // Initialize notification system
+  initializeNotificationSystem(jiraService, context, jiraTasksProvider);
+
   // Register refresh command for JIRA tasks
   context.subscriptions.push(
     vscode.commands.registerCommand('fe-dev-workflow.refreshJiraTasks', () => {
@@ -264,4 +267,120 @@ export function activate(context: vscode.ExtensionContext) {
   );
 }
 
-export function deactivate() {}
+export function deactivate() {
+  // Stop notification polling when extension is deactivated
+  const jiraService = JiraService.getInstance();
+  jiraService.stopNotificationPolling();
+}
+
+/**
+ * Initializes the JIRA task notification system
+ */
+function initializeNotificationSystem(
+  jiraService: JiraService, 
+  context: vscode.ExtensionContext,
+  jiraTasksProvider: JiraTasksProvider
+): void {
+  const config = vscode.workspace.getConfiguration('jiraWorkflow');
+  const notificationsEnabled = config.get<boolean>('notificationsEnabled');
+  
+  // Register commands related to notifications
+  context.subscriptions.push(
+    vscode.commands.registerCommand('fe-dev-workflow.toggleNotifications', async () => {
+      const config = vscode.workspace.getConfiguration('jiraWorkflow');
+      const currentlyEnabled = config.get<boolean>('notificationsEnabled');
+      
+      await config.update('notificationsEnabled', !currentlyEnabled, vscode.ConfigurationTarget.Global);
+      
+      // Restart notification system with new settings
+      initializeNotificationSystem(jiraService, context, jiraTasksProvider);
+      
+      vscode.window.showInformationMessage(`JIRA task notifications ${!currentlyEnabled ? 'enabled' : 'disabled'}`);
+    })
+  );
+
+  // Add command to open task when clicked from notification
+  context.subscriptions.push(
+    vscode.commands.registerCommand('fe-dev-workflow.openTaskFromNotification', async (task: JiraTask) => {
+      await vscode.commands.executeCommand('fe-dev-workflow.openChecklistEditor', task);
+    })
+  );
+  
+  // Stop existing polling if any
+  jiraService.stopNotificationPolling();
+  
+  // If notifications are disabled, we're done
+  if (!notificationsEnabled) {
+    console.log('JIRA task notifications are disabled');
+    return;
+  }
+  
+  // Start notification polling
+  jiraService.startNotificationPolling((newTasks: JiraTask[]) => {
+    // Handle multiple new tasks
+    if (newTasks.length > 0) {
+      // Play notification sound if enabled
+      const playSound = config.get<boolean>('notificationSound');
+      
+      if (newTasks.length === 1) {
+        // Single task notification
+        const task = newTasks[0];
+        
+        // Create action buttons for the notification
+        const openTask = 'Open Task';
+        const openJira = 'Open in JIRA';
+        
+        vscode.window.showInformationMessage(
+          `New JIRA task assigned to you: ${task.key} - ${task.summary}`,
+          { modal: false, detail: `Type: ${task.type} | Priority: ${task.priority}` },
+          openTask, 
+          openJira
+        ).then(selection => {
+          if (selection === openTask) {
+            vscode.commands.executeCommand('fe-dev-workflow.openTaskFromNotification', task);
+          } else if (selection === openJira) {
+            vscode.env.openExternal(vscode.Uri.parse(task.url));
+          }
+        });
+      } else {
+        // Multiple task notification
+        const viewTasks = 'View Tasks';
+        
+        vscode.window.showInformationMessage(
+          `${newTasks.length} new JIRA tasks assigned to you`,
+          viewTasks
+        ).then(selection => {
+          if (selection === viewTasks) {
+            vscode.commands.executeCommand('workbench.view.extension.jira-workflow');
+            jiraTasksProvider.refresh();
+          }
+        });
+      }
+      
+      // Play sound if enabled
+      if (playSound) {
+        vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup')
+          .then(() => {
+            vscode.commands.executeCommand('editor.action.marker.next')
+              .then(() => {
+                vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
+              });
+          });
+      }
+      
+      // Refresh the task list in the sidebar
+      jiraTasksProvider.refresh();
+    }
+  });
+  
+  // Also register configuration change listener to restart notification system when settings change
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('jiraWorkflow.notificationsEnabled') || 
+          e.affectsConfiguration('jiraWorkflow.notificationPollingInterval') ||
+          e.affectsConfiguration('jiraWorkflow.notificationSound')) {
+        initializeNotificationSystem(jiraService, context, jiraTasksProvider);
+      }
+    })
+  );
+}
