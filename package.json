@@ -65,10 +65,6 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "fe-dev-workflow.openChecklistEditor",
-        "title": "Open Checklist"
-      },
-      {
         "command": "fe-dev-workflow.exportChecklist",
         "title": "Export Checklist",
         "icon": "$(export)"
