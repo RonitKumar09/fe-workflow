@@ -12,6 +12,18 @@ export interface JiraTask {
   epicKey?: string;
   epicSummary?: string;
   url: string;
+  fixVersions?: FixVersion[];
+  created?: string;
+  updated?: string;
+}
+
+export interface FixVersion {
+  id: string;
+  name: string;
+  description?: string;
+  released: boolean;
+  archived: boolean;
+  releaseDate?: string;
 }
 
 export interface JiraCredentials {

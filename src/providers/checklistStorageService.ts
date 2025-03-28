@@ -171,10 +171,30 @@ export class ChecklistStorageService {
             position: relative;
           }
           
+          .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+          }
+          
+          .logo-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+          }
+          
+          .logo {
+            width: 40px;
+            height: 40px;
+            margin-right: 15px;
+          }
+          
+          .task-info {
+            flex-grow: 1;
+          }
+          
           .theme-toggle {
-            position: absolute;
-            top: 20px;
-            right: 20px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -187,6 +207,8 @@ export class ChecklistStorageService {
             border: none;
             outline: none;
             transition: all 0.3s ease;
+            margin-left: 15px;
+            flex-shrink: 0;
           }
           
           .theme-toggle:hover {
@@ -281,7 +303,7 @@ export class ChecklistStorageService {
           
           .section-progress {
             font-size: 0.9em;
-            color: var(--text-light);
+            color: var (--text-light);
           }
           
           .section-content {
@@ -434,18 +456,29 @@ export class ChecklistStorageService {
       </head>
       <body>
         <div class="header">
-          <button id="theme-toggle" class="theme-toggle tooltip" aria-label="Toggle dark mode">
-            <span class="tooltiptext">Toggle Dark Mode</span>
-            <svg id="theme-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-              <!-- Sun icon (for dark mode toggle) -->
-              <path class="sun-icon" d="M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S14.76,7,12,7L12,7z M2,13h2c0.55,0,1-0.45,1-1s-0.45-1-1-1H2 c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13h2c0.55,0,1-0.45,1-1s-0.45-1-1-1h-2c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2 c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1 S11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0 s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06 c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41 c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36 c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z" />
-              <!-- Moon icon (for light mode toggle) -->
-              <path class="moon-icon" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36c-0.98,1.37-2.58,2.26-4.4,2.26 c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z" style="display: none;" />
-            </svg>
-          </button>
-          <div class="task-key">${checklist.jiraTaskKey}</div>
-          <div class="task-summary">${checklist.jiraTaskSummary}</div>
-          <div class="timestamp">Last updated: ${new Date(checklist.lastUpdated).toLocaleString()}</div>
+          <div class="header-top">
+            <div class="task-info">
+              <div class="logo-container">
+                <!-- SVG logo -->
+                <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="var(--primary-color)">
+                  <path d="M31.95 1.66c-.17.14-8.45 8.36-18.43 18.3L-4.70 38.14l10.96 10.95c6.02 6.03 11.11 11.1 11.31 11.27.36.32.36.32 12.43-11.75l14.25-14.26-6.13-6.12c-3.39-3.36-6.17-6.13-6.19-6.17-.03-.03 2.71-2.82 6.08-6.18L32.10 9.8l-10.91-10.9c-5.99-6-10.96-10.9-11.03-10.9h22.08L32.1 9.86 32.2 9.87l11.03-11.04h20.43L31.95 1.66z M32.05 22.15l6.11 6.09-12.2 12.19c-6.7 6.7-12.25 12.2-12.3 12.22-.17.05-10.93-10.7-11-10.92-.04-.08 28.92-29.04 29.23-29.08 0 0 .04.1.16.15"/>
+                </svg>
+                <h1 style="margin-top: 0; margin-bottom: 10px;">JIRA Workflow</h1>
+              </div>
+              <div class="task-key">${checklist.jiraTaskKey}</div>
+              <div class="task-summary">${checklist.jiraTaskSummary}</div>
+              <div class="timestamp">Last updated: ${new Date(checklist.lastUpdated).toLocaleString()}</div>
+            </div>
+            <button id="theme-toggle" class="theme-toggle tooltip" aria-label="Toggle dark mode">
+              <span class="tooltiptext">Toggle Dark Mode</span>
+              <svg id="theme-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <!-- Sun icon (for dark mode toggle) -->
+                <path class="sun-icon" d="M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S14.76,7,12,7L12,7z M2,13h2c0.55,0,1-0.45,1-1s-0.45-1-1-1H2 c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13h2c0.55,0,1-0.45,1-1s-0.45-1-1-1h-2c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2 c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1 S11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0 s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06 c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41 c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36 c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z" />
+                <!-- Moon icon (for light mode toggle) -->
+                <path class="moon-icon" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36c-0.98,1.37-2.58,2.26-4.4,2.26 c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z" style="display: none;" />
+              </svg>
+            </button>
+          </div>
           
           <div class="progress-container">
             <div class="progress-bar-outer">

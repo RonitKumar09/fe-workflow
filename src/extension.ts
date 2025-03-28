@@ -265,6 +265,61 @@ export function activate(context: vscode.ExtensionContext) {
       }
     })
   );
+
+  // Command to open JIRA task in browser
+  context.subscriptions.push(
+    vscode.commands.registerCommand('fe-dev-workflow.openJiraTaskInBrowser', async (taskItem) => {
+      try {
+        // The command might be called from different places, so we need to handle different input formats
+        let task: JiraTask | undefined;
+        
+        if (taskItem && taskItem.task) {
+          // Called from tree view context menu with a JiraTaskItem
+          task = taskItem.task;
+        } else if (taskItem && taskItem.key) {
+          // Called directly with a JiraTask object
+          task = taskItem;
+        } else {
+          // No task provided, show error
+          vscode.window.showErrorMessage('No JIRA task selected');
+          return;
+        }
+        
+        // Ensure task is defined before proceeding
+        if (!task) {
+          vscode.window.showErrorMessage('Invalid JIRA task data');
+          return;
+        }
+        
+        // Check if the URL is valid
+        if (!task.url) {
+          // If URL is missing, try to construct it from baseUrl and key
+          const config = vscode.workspace.getConfiguration('jiraWorkflow');
+          const baseUrl = config.get<string>('baseUrl');
+          
+          if (baseUrl && task.key) {
+            const url = `${baseUrl}/browse/${task.key}`;
+            await vscode.env.openExternal(vscode.Uri.parse(url));
+            return;
+          }
+          
+          vscode.window.showErrorMessage('Unable to open JIRA task: URL not found');
+          return;
+        }
+        
+        // Ensure URL is properly formatted
+        let url = task.url;
+        if (!url.startsWith('http')) {
+          url = `https://${url}`;
+        }
+        
+        await vscode.env.openExternal(vscode.Uri.parse(url));
+      } catch (error) {
+        console.error('Error opening JIRA task in browser:', error);
+        vscode.window.showErrorMessage(`Error opening JIRA task: ${error}`);
+      }
+    })
+  );
 }
 
 export function deactivate() {

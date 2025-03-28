@@ -94,8 +94,8 @@ export class JiraService {
         `${credentials.baseUrl}/rest/api/3/search`,
         {
           params: {
-            jql: 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC',
-            fields: 'summary,description,status,issuetype,priority,parent,epic,issuelinks'
+            jql: 'assignee = currentUser() ORDER BY updated DESC',
+            fields: 'summary,description,status,issuetype,priority,parent,epic,issuelinks,fixVersions,created,updated'
           },
           auth: {
             username: credentials.username,
@@ -117,6 +117,18 @@ export class JiraService {
           epicSummary = issue.fields.epic.summary;
         }
 
+        // Process fix versions
+        const fixVersions = issue.fields.fixVersions ? issue.fields.fixVersions.map((version: any) => {
+          return {
+            id: version.id,
+            name: version.name,
+            description: version.description,
+            released: version.released,
+            archived: version.archived,
+            releaseDate: version.releaseDate
+          };
+        }) : [];
+
         return {
           id: issue.id,
           key: issue.key,
@@ -130,7 +142,10 @@ export class JiraService {
           parentSummary,
           epicKey,
           epicSummary,
-          url: `${credentials.baseUrl}/browse/${issue.key}`
+          url: `${credentials.baseUrl}/browse/${issue.key}`,
+          fixVersions: fixVersions.length > 0 ? fixVersions : undefined,
+          created: issue.fields.created,
+          updated: issue.fields.updated
         };
       });
     } catch (error) {

@@ -2,46 +2,51 @@ import * as vscode from 'vscode';
 import { JiraService } from '../providers/jiraService';
 import { JiraTask } from '../models/jiraTask';
 
-// Define categories of tasks
-export enum TaskCategory {
-  Done = 'Done',
-  InProgress = 'In Progress',
-  backlog = 'Not Started',
-  Discard = 'Discard',
-  Other = 'Other'
+// Define release version categories
+export enum VersionCategory {
+  Unreleased = 'Unreleased',
+  Released = 'Released',
+  NoVersion = 'No Version'
 }
 
-// Class to represent a task category node in the tree view
-export class TaskCategoryItem extends vscode.TreeItem {
+// Class to represent a release version node in the tree view
+export class VersionCategoryItem extends vscode.TreeItem {
   constructor(
     public readonly category: string,
-    public readonly tasks: JiraTask[]
+    public readonly tasks: JiraTask[],
+    public readonly version?: string,
+    public readonly releaseDate?: string
   ) {
     super(
-      `${category} (${tasks.length})`, 
+      version ? `${version} (${tasks.length})` : `${category} (${tasks.length})`, 
       vscode.TreeItemCollapsibleState.Expanded
     );
     
-    this.contextValue = 'taskCategory';
-    this.iconPath = getCategoryIcon(category);
-    this.description = `${tasks.length} task${tasks.length !== 1 ? 's' : ''}`;
-    this.tooltip = `${tasks.length} task${tasks.length !== 1 ? 's' : ''} in ${category}`;
+    this.contextValue = 'versionCategory';
+    this.iconPath = getVersionIcon(category);
+    
+    // Show release date in the description if available
+    if (releaseDate) {
+      this.description = `${tasks.length} task${tasks.length !== 1 ? 's' : ''} · ${releaseDate}`;
+      this.tooltip = `${version}: ${tasks.length} task${tasks.length !== 1 ? 's' : ''}\nRelease Date: ${releaseDate}`;
+    } else {
+      this.description = `${tasks.length} task${tasks.length !== 1 ? 's' : ''}`;
+      this.tooltip = `${version || category}: ${tasks.length} task${tasks.length !== 1 ? 's' : ''}`;
+    }
   }
 }
 
-// Helper function to determine the appropriate icon for each category
-function getCategoryIcon(category: string): vscode.ThemeIcon {
+// Helper function to determine the appropriate icon for each version category
+function getVersionIcon(category: string): vscode.ThemeIcon {
   switch(category) {
-    case TaskCategory.Done:
-      return new vscode.ThemeIcon('check-all');
-    case TaskCategory.InProgress:
-      return new vscode.ThemeIcon('play-circle');
-    case TaskCategory.backlog:
+    case VersionCategory.Unreleased:
+      return new vscode.ThemeIcon('milestone');
+    case VersionCategory.Released:
+      return new vscode.ThemeIcon('tag');
+    case VersionCategory.NoVersion:
       return new vscode.ThemeIcon('circle-outline');
-    case TaskCategory.Discard:
-      return new vscode.ThemeIcon('trash');
     default:
-      return new vscode.ThemeIcon('list-unordered');
+      return new vscode.ThemeIcon('versions');
   }
 }
 
@@ -52,7 +57,8 @@ export class JiraTaskItem extends vscode.TreeItem {
   ) {
     super(task.key + ': ' + task.summary, collapsibleState);
     
-    this.tooltip = `${task.key}: ${task.summary}\nStatus: ${task.status}\nType: ${task.type}`;
+    // Set tooltip with task info
+    this.tooltip = `${task.key}: ${task.summary}\nStatus: ${task.status}\nType: ${task.type}\nClick to open checklist`;
     this.description = task.status;
     
     // Set the context value based on the issue type to enable conditional context menu items
@@ -72,17 +78,17 @@ export class JiraTaskItem extends vscode.TreeItem {
       this.iconPath = new vscode.ThemeIcon('issue-opened');
     }
 
-    // Command to execute when clicking on the item
+    // Command to execute when clicking on the item - using key to reference task
     this.command = {
       command: 'fe-dev-workflow.openChecklistEditor',
       title: 'Open Checklist',
-      arguments: [this.task]
+      arguments: [task] // Pass entire task object
     };
   }
 }
 
 // Type for tree items that can be either categories or tasks
-type TreeItem = TaskCategoryItem | JiraTaskItem;
+type TreeItem = VersionCategoryItem | JiraTaskItem;
 
 export class JiraTasksProvider implements vscode.TreeDataProvider<TreeItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | null | void> = 
@@ -101,26 +107,32 @@ export class JiraTasksProvider implements vscode.TreeDataProvider<TreeItem> {
     return element;
   }
 
-  // Helper method to categorize a task based on its status
-  private categorizeTask(task: JiraTask): string {
-    const status = task.status.toLowerCase();
+  // Helper method to categorize a task based on its release version
+  private categorizeTask(task: JiraTask): { category: string, versionName?: string, releaseDate?: string } {
+    if (!task.fixVersions || task.fixVersions.length === 0) {
+      return { category: VersionCategory.NoVersion };
+    }
     
-    if (status.includes('done') || status.includes('resolved') || status.includes('closed')) {
-      return TaskCategory.Done;
-    } else if (status.includes('in progress') || status.includes('review') || status.includes('testing')) {
-      return TaskCategory.InProgress;
-    } else if (status.includes('to do') || status.includes('open') || status.includes('new')) {
-      return TaskCategory.backlog;
-    } else if (status.includes('discard') || status.includes('cancelled') || status.includes('won\'t do')) {
-      return TaskCategory.Discard;
+    // For simplicity, we'll use the first version associated with the task
+    const version = task.fixVersions[0];
+    if (version.released) {
+      return { 
+        category: VersionCategory.Released,
+        versionName: version.name,
+        releaseDate: version.releaseDate
+      };
     } else {
-      return TaskCategory.Other;
+      return { 
+        category: VersionCategory.Unreleased,
+        versionName: version.name,
+        releaseDate: version.releaseDate
+      };
     }
   }
 
   async getChildren(element?: TreeItem): Promise<TreeItem[]> {
     // If element is a category, return its tasks
-    if (element instanceof TaskCategoryItem) {
+    if (element instanceof VersionCategoryItem) {
       return element.tasks.map(task => 
         new JiraTaskItem(task, vscode.TreeItemCollapsibleState.None)
       );
@@ -135,31 +147,96 @@ export class JiraTasksProvider implements vscode.TreeDataProvider<TreeItem> {
           return [];
         }
         
-        // Group tasks by category
-        const tasksByCategory = new Map<string, JiraTask[]>();
-        
-        // Initialize categories with empty arrays
-        Object.values(TaskCategory).forEach(category => {
-          tasksByCategory.set(category, []);
-        });
+        // Group tasks by version
+        const tasksByVersion = new Map<string, {
+          category: string,
+          versionName?: string,
+          releaseDate?: string,
+          tasks: JiraTask[]
+        }>();
         
         // Categorize each task
         tasks.forEach(task => {
-          const category = this.categorizeTask(task);
-          const categoryTasks = tasksByCategory.get(category) || [];
-          categoryTasks.push(task);
-          tasksByCategory.set(category, categoryTasks);
-        });
-        
-        // Create category items, but only for categories that have tasks
-        const categoryItems: TaskCategoryItem[] = [];
-        tasksByCategory.forEach((categoryTasks, category) => {
-          if (categoryTasks.length > 0) {
-            categoryItems.push(new TaskCategoryItem(category, categoryTasks));
+          const { category, versionName, releaseDate } = this.categorizeTask(task);
+          // Create a unique key for the version
+          const versionKey = versionName ? `${category}-${versionName}` : category;
+          
+          let versionGroup = tasksByVersion.get(versionKey);
+          if (!versionGroup) {
+            versionGroup = {
+              category,
+              versionName,
+              releaseDate,
+              tasks: []
+            };
+            tasksByVersion.set(versionKey, versionGroup);
           }
+          
+          versionGroup.tasks.push(task);
         });
         
-        return categoryItems;
+        // Create version items and sort them
+        const versionItems: VersionCategoryItem[] = [];
+        
+        // First, handle "No Version" category
+        const noVersionGroup = tasksByVersion.get(VersionCategory.NoVersion);
+        if (noVersionGroup && noVersionGroup.tasks.length > 0) {
+          versionItems.push(new VersionCategoryItem(
+            noVersionGroup.category,
+            noVersionGroup.tasks
+          ));
+        }
+        
+        // Handle unreleased versions
+        const unreleasedVersions = Array.from(tasksByVersion.values())
+          .filter(group => group.category === VersionCategory.Unreleased)
+          .sort((a, b) => {
+            // Sort by release date if available (earliest first), otherwise by name
+            if (a.releaseDate && b.releaseDate) {
+              return new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime();
+            } else if (a.releaseDate) {
+              return -1; // Versions with release dates come first
+            } else if (b.releaseDate) {
+              return 1;
+            }
+            // Finally, sort alphabetically by name
+            return (a.versionName || '').localeCompare(b.versionName || '');
+          });
+        
+        unreleasedVersions.forEach(group => {
+          versionItems.push(new VersionCategoryItem(
+            group.category,
+            group.tasks,
+            group.versionName,
+            group.releaseDate
+          ));
+        });
+        
+        // Handle released versions
+        const releasedVersions = Array.from(tasksByVersion.values())
+          .filter(group => group.category === VersionCategory.Released)
+          .sort((a, b) => {
+            // Sort released versions by date (most recent first)
+            if (a.releaseDate && b.releaseDate) {
+              return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+            } else if (a.releaseDate) {
+              return -1;
+            } else if (b.releaseDate) {
+              return 1;
+            }
+            return (b.versionName || '').localeCompare(a.versionName || '');
+          });
+        
+        releasedVersions.forEach(group => {
+          versionItems.push(new VersionCategoryItem(
+            group.category,
+            group.tasks,
+            group.versionName,
+            group.releaseDate
+          ));
+        });
+        
+        return versionItems;
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to load JIRA tasks: ${error}`);
         return [];

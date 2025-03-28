@@ -81,6 +81,11 @@
         "command": "fe-dev-workflow.toggleNotifications",
         "title": "Toggle JIRA Task Notifications",
         "icon": "$(bell)"
+      },
+      {
+        "command": "fe-dev-workflow.openJiraTaskInBrowser",
+        "title": "Open in JIRA",
+        "icon": "$(link-external)"
       }
     ],
     "menus": {
@@ -104,7 +109,12 @@
       "view/item/context": [
         {
           "command": "fe-dev-workflow.openChecklistEditor",
-          "when": "view == jiraTasksView",
+          "when": "view == jiraTasksView && viewItem == jiraTask",
+          "group": "inline"
+        },
+        {
+          "command": "fe-dev-workflow.openJiraTaskInBrowser",
+          "when": "view == jiraTasksView && viewItem == jiraTask",
           "group": "inline"
         }
       ],
