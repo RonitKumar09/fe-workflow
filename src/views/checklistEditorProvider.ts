@@ -169,7 +169,7 @@ export class ChecklistEditorProvider implements vscode.CustomTextEditorProvider 
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; connect-src vscode-webview:*;">
         <title>FE Developer Workflow Checklist</title>
         <style>
           :root {

@@ -339,9 +339,9 @@ function initializeNotificationSystem(
   const config = vscode.workspace.getConfiguration('jiraWorkflow');
   const notificationsEnabled = config.get<boolean>('notificationsEnabled');
   
-  // Register commands related to notifications
-  context.subscriptions.push(
-    vscode.commands.registerCommand('fe-dev-workflow.toggleNotifications', async () => {
+  // Register commands related to notifications - only once, not every time this function is called
+  if (!context.subscriptions.some(d => (d as any)._id === 'toggleNotifications')) {
+    const toggleNotificationsCommand = vscode.commands.registerCommand('fe-dev-workflow.toggleNotifications', async () => {
       const config = vscode.workspace.getConfiguration('jiraWorkflow');
       const currentlyEnabled = config.get<boolean>('notificationsEnabled');
       
@@ -351,15 +351,23 @@ function initializeNotificationSystem(
       initializeNotificationSystem(jiraService, context, jiraTasksProvider);
       
       vscode.window.showInformationMessage(`JIRA task notifications ${!currentlyEnabled ? 'enabled' : 'disabled'}`);
-    })
-  );
+    });
+    
+    // Add an identifier to help us check if it's already registered
+    (toggleNotificationsCommand as any)._id = 'toggleNotifications';
+    context.subscriptions.push(toggleNotificationsCommand);
+  }
 
-  // Add command to open task when clicked from notification
-  context.subscriptions.push(
-    vscode.commands.registerCommand('fe-dev-workflow.openTaskFromNotification', async (task: JiraTask) => {
+  // Add command to open task when clicked from notification - only register once
+  if (!context.subscriptions.some(d => (d as any)._id === 'openTaskFromNotification')) {
+    const openTaskCommand = vscode.commands.registerCommand('fe-dev-workflow.openTaskFromNotification', async (task: JiraTask) => {
       await vscode.commands.executeCommand('fe-dev-workflow.openChecklistEditor', task);
-    })
-  );
+    });
+    
+    // Add an identifier to help us check if it's already registered
+    (openTaskCommand as any)._id = 'openTaskFromNotification';
+    context.subscriptions.push(openTaskCommand);
+  }
   
   // Stop existing polling if any
   jiraService.stopNotificationPolling();
@@ -428,14 +436,19 @@ function initializeNotificationSystem(
     }
   });
   
-  // Also register configuration change listener to restart notification system when settings change
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration(e => {
+  // Register configuration change listener to restart notification system when settings change
+  // Only register this once
+  if (!context.subscriptions.some(d => (d as any)._id === 'notificationConfigListener')) {
+    const configListener = vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('jiraWorkflow.notificationsEnabled') || 
           e.affectsConfiguration('jiraWorkflow.notificationPollingInterval') ||
           e.affectsConfiguration('jiraWorkflow.notificationSound')) {
         initializeNotificationSystem(jiraService, context, jiraTasksProvider);
       }
-    })
-  );
+    });
+    
+    // Add an identifier
+    (configListener as any)._id = 'notificationConfigListener';
+    context.subscriptions.push(configListener);
+  }
 }
