@@ -83,6 +83,11 @@
         "command": "fe-dev-workflow.openJiraTaskInBrowser",
         "title": "Open in JIRA",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "fe-dev-workflow.openChecklistEditor",
+        "title": "Open Checklist Editor",
+        "icon": "$(checklist)"
       }
     ],
     "menus": {
