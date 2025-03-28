@@ -458,13 +458,6 @@ export class ChecklistStorageService {
         <div class="header">
           <div class="header-top">
             <div class="task-info">
-              <div class="logo-container">
-                <!-- SVG logo -->
-                <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="var(--primary-color)">
-                  <path d="M31.95 1.66c-.17.14-8.45 8.36-18.43 18.3L-4.70 38.14l10.96 10.95c6.02 6.03 11.11 11.1 11.31 11.27.36.32.36.32 12.43-11.75l14.25-14.26-6.13-6.12c-3.39-3.36-6.17-6.13-6.19-6.17-.03-.03 2.71-2.82 6.08-6.18L32.10 9.8l-10.91-10.9c-5.99-6-10.96-10.9-11.03-10.9h22.08L32.1 9.86 32.2 9.87l11.03-11.04h20.43L31.95 1.66z M32.05 22.15l6.11 6.09-12.2 12.19c-6.7 6.7-12.25 12.2-12.3 12.22-.17.05-10.93-10.7-11-10.92-.04-.08 28.92-29.04 29.23-29.08 0 0 .04.1.16.15"/>
-                </svg>
-                <h1 style="margin-top: 0; margin-bottom: 10px;">JIRA Workflow</h1>
-              </div>
               <div class="task-key">${checklist.jiraTaskKey}</div>
               <div class="task-summary">${checklist.jiraTaskSummary}</div>
               <div class="timestamp">Last updated: ${new Date(checklist.lastUpdated).toLocaleString()}</div>
