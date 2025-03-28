@@ -4,6 +4,7 @@
   "description": "VS Code extension to track JIRA tasks and manage a development workflow checklist",
   "version": "0.0.1",
   "publisher": "Ronit",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/RonitKumar09/fe-workflow-extention.git"
