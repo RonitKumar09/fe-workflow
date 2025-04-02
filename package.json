@@ -2,12 +2,12 @@
   "name": "fe-dev-workflow",
   "displayName": "JIRA Workflow Checklist",
   "description": "VS Code extension to track JIRA tasks and manage a development workflow checklist",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "ronitkumar09",
   "icon": "media/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/RonitKumar09/fe-workflow-extention.git"
+    "url": "https://ronit8@bitbucket.org/oneinfinity/workflow.git"
   },
   "license": "MIT",
   "engines": {
